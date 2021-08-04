@@ -49,6 +49,23 @@ class BC_Trainer(object):
             expert_policy=self.loaded_expert_policy,
         )
 
+    def eval_expert(self):
+        env = self.rl_trainer.env
+        policy = self.loaded_expert_policy
+        ob = env.reset()
+        
+        rewards = []
+        steps = 0
+        while True:
+            ac = policy.get_action(ob)
+            ac = ac[0]
+
+            ob, rew, done, _ = env.step(ac)
+            steps += 1
+            rewards.append(rew)
+            if done or steps==self.params["ep_len"]:
+                break
+        print(f"expert reward {sum(rewards)}")
 
 def main():
     import argparse
@@ -114,6 +131,7 @@ def main():
     ###################
 
     trainer = BC_Trainer(params)
+    trainer.eval_expert()
     trainer.run_training_loop()
 
 if __name__ == "__main__":

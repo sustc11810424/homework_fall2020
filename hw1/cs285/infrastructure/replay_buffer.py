@@ -76,8 +76,14 @@ class ReplayBuffer(object):
         ## HINT 1: use np.random.permutation to sample random indices
         ## HINT 2: return corresponding data points from each array (i.e., not different indices from each array)
         ## HINT 3: look at the sample_recent_data function below
-
-        return TODO, TODO, TODO, TODO, TODO
+        sample_idx = np.random.permutation(len(self.obs))[:batch_size]
+        return (
+            self.obs[sample_idx],
+            self.acs[sample_idx],
+            self.rews[sample_idx],
+            self.next_obs[sample_idx],
+            self.terminals[sample_idx],
+        )
 
     def sample_recent_data(self, batch_size=1):
         return (
