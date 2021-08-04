@@ -92,7 +92,8 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
         else:
             observation = obs[None]
         observation = ptu.from_numpy(observation)
-        action = ptu.to_numpy(self(observation))
+        action_distribution = self(observation)
+        action = action_distribution.sample()
         return action
 
     # update/train this policy
@@ -104,14 +105,14 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
     # through it. For example, you can return a torch.FloatTensor. You can also
     # return more flexible objects, such as a
     # `torch.distributions.Distribution` object. It's up to you!
-    def forward(self, observation: torch.FloatTensor):
+    def forward(self, observation: torch.FloatTensor) -> distributions.Distribution:
         # TODO: get this from hw1
         if self.discrete:
-            return self.logits_na(observation)
+            return distributions.Categorical(logits=self.logits_na(observation)) 
         else:
-            return distributions.normal.Normal(
+            return distributions.Normal(
                 self.mean_net(observation),
-                self.
+                torch.exp(self.logstd)
             ) 
 
 
