@@ -5,26 +5,26 @@ import copy
 ############################################
 ############################################
 
-def calculate_mean_prediction_error(env, action_sequence, models, data_statistics):
+# def calculate_mean_prediction_error(env, action_sequence, models, data_statistics):
 
-    model = models[0]
+#     model = models[0]
 
-    # true
-    true_states = perform_actions(env, action_sequence)['observation']
+#     # true
+#     true_states = perform_actions(env, action_sequence)['observation']
 
-    # predicted
-    ob = np.expand_dims(true_states[0],0)
-    pred_states = []
-    for ac in action_sequence:
-        pred_states.append(ob)
-        action = np.expand_dims(ac,0)
-        ob = model.get_prediction(ob, action, data_statistics)
-    pred_states = np.squeeze(pred_states)
+#     # predicted
+#     ob = np.expand_dims(true_states[0],0)
+#     pred_states = []
+#     for ac in action_sequence:
+#         pred_states.append(ob)
+#         action = np.expand_dims(ac,0)
+#         ob = model.get_prediction(ob, action, data_statistics)
+#     pred_states = np.squeeze(pred_states)
 
-    # mpe
-    mpe = mean_squared_error(pred_states, true_states)
+#     # mpe
+#     mpe = mean_squared_error(pred_states, true_states)
 
-    return mpe, true_states, pred_states
+#     return mpe, true_states, pred_states
 
 def perform_actions(env, actions):
     ob = env.reset()
@@ -56,14 +56,77 @@ def mean_squared_error(a, b):
 
 def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('rgb_array')):
     # TODO: get this from hw1
+    # initialize env for the beginning of a new rollout
+    ob = env.reset() # HINT: should be the output of resetting the env
+
+    # init vars
+    obs, acs, rewards, next_obs, terminals, image_obs = [], [], [], [], [], []
+    steps = 0
+    while True:
+
+        # render image of the simulated env
+        if render:
+            if 'rgb_array' in render_mode:
+                if hasattr(env, 'sim'):
+                    image_obs.append(env.sim.render(camera_name='track', height=500, width=500)[::-1])
+                else:
+                    image_obs.append(env.render(mode=render_mode))
+            if 'human' in render_mode:
+                env.render(mode=render_mode)
+                time.sleep(env.model.opt.timestep)
+
+        # use the most recent ob to decide what to do
+        obs.append(ob)
+        ac = policy.get_action(ob) # HINT: query the policy's get_action function
+        ac = ac[0]
+        acs.append(ac)
+
+        # take that action and record results
+        ob, rew, done, _ = env.step(ac)
+
+        # record result of taking that action
+        steps += 1
+        next_obs.append(ob)
+        rewards.append(rew)
+
+        # TODO end the rollout if the rollout ended
+        # HINT: rollout can end due to done, or due to max_path_length
+        rollout_done = done or steps==max_path_length # HINT: this is either 0 or 1
+        terminals.append(rollout_done)
+
+        if rollout_done:
+            print(f"rollout done at step {steps}/{max_path_length}")
+            break
     return Path(obs, image_obs, acs, rewards, next_obs, terminals)
     
 def sample_trajectories(env, policy, min_timesteps_per_batch, max_path_length, render=False, render_mode=('rgb_array')):
     # TODO: get this from hw1
+    """
+        Collect rollouts until we have collected min_timesteps_per_batch steps.
+
+        TODO implement this function
+        Hint1: use sample_trajectory to get each path (i.e. rollout) that goes into paths
+        Hint2: use get_pathlength to count the timesteps collected in each path
+    """
+    timesteps_this_batch = 0
+    paths = []
+    while timesteps_this_batch < min_timesteps_per_batch:
+        path = sample_trajectory(env, policy, max_path_length, render, render_mode)
+        paths.append(path)
+        timesteps_this_batch += get_pathlength(path)
+
     return paths, timesteps_this_batch
 
 def sample_n_trajectories(env, policy, ntraj, max_path_length, render=False, render_mode=('rgb_array')):
     # TODO: get this from hw1
+    """
+        Collect ntraj rollouts.
+
+        TODO implement this function
+        Hint1: use sample_trajectory to get each path (i.e. rollout) that goes into paths
+    """
+    paths = [sample_trajectory(env, policy, max_path_length, render, render_mode) for _ in range(ntraj)]
+    
     return paths
 
 ############################################
