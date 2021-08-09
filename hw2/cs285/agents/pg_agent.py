@@ -1,9 +1,10 @@
 import numpy as np
+import torch
 
 from .base_agent import BaseAgent
 from cs285.policies.MLP_policy import MLPPolicyPG
 from cs285.infrastructure.replay_buffer import ReplayBuffer
-
+from cs285.infrastructure.utils import normalize
 
 class PGAgent(BaseAgent):
     def __init__(self, env, agent_params):
@@ -40,13 +41,14 @@ class PGAgent(BaseAgent):
 
         # step 1: calculate q values of each (s_t, a_t) point, using rewards (r_0, ..., r_t, ..., r_T)
         q_values = self.calculate_q_vals(rewards_list)
-
+        
         # step 2: calculate advantages that correspond to each (s_t, a_t) point
         advantages = self.estimate_advantage(observations, q_values)
 
         # TODO: step 3: use all datapoints (s_t, a_t, q_t, adv_t) to update the PG actor/policy
         ## HINT: `train_log` should be returned by your actor update method
-        train_log = TODO
+        train_log = self.actor.update(
+            observations, actions, advantages, q_values, len(rewards_list))
 
         return train_log
 
@@ -91,7 +93,7 @@ class PGAgent(BaseAgent):
             ## have the same mean and standard deviation as the current batch of q_values
             baselines = baselines_unnormalized * np.std(q_values) + np.mean(q_values)
             ## TODO: compute advantage estimates using q_values and baselines
-            advantages = TODO
+            advantages = q_values - baselines
 
         # Else, just set the advantage to [Q]
         else:
@@ -102,7 +104,7 @@ class PGAgent(BaseAgent):
             ## TODO: standardize the advantages to have a mean of zero
             ## and a standard deviation of one
             ## HINT: there is a `normalize` function in `infrastructure.utils`
-            advantages = TODO
+            advantages = normalize(advantages, advantages.mean(), advantages.std())
 
         return advantages
 
@@ -131,8 +133,9 @@ class PGAgent(BaseAgent):
         # TODO: create list_of_discounted_returns
         # Hint: note that all entries of this output are equivalent
             # because each sum is from 0 to T (and doesnt involve t)
-
-        return list_of_discounted_returns
+        gammas = np.cumprod(np.ones(len(rewards))*self.gamma) / self.gamma
+        discounted_return = (rewards * gammas).sum()
+        return [discounted_return] * len(rewards)
 
     def _discounted_cumsum(self, rewards):
         """
@@ -146,6 +149,11 @@ class PGAgent(BaseAgent):
             # because the summation happens over [t, T] instead of [0, T]
         # HINT2: it is possible to write a vectorized solution, but a solution
             # using a for loop is also fine
-
+        gammas = np.cumprod(np.ones(len(rewards))*self.gamma)
+        discounted_return = rewards * gammas
+        result = np.flip(np.cumsum(np.flip(discounted_return))) / gammas
+        assert np.isclose(result[0], result[1]*self.gamma+rewards[0])
+        list_of_discounted_cumsums = result.tolist()
+        # print(list_of_discounted_cumsums)
         return list_of_discounted_cumsums
 

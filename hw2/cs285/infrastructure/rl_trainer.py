@@ -44,6 +44,7 @@ class RL_Trainer(object):
         #############
 
         # Make the gym environment
+        print(f"Env: {self.params['env_name']}")
         self.env = gym.make(self.params['env_name'])
         self.env.seed(seed)
 
