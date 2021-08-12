@@ -34,15 +34,29 @@ class ACAgent(BaseAgent):
         # TODO Implement the following pseudocode:
         # for agent_params['num_critic_updates_per_agent_update'] steps,
         #     update the critic
-
+        for _ in range(self.agent_params["num_critic_updates_per_agent_update"]):
+            loss_critic = self.critic.update(
+                ob_no,
+                ac_na,
+                next_ob_no,
+                re_n,
+                terminal_n,
+            )
         # advantage = estimate_advantage(...)
+        advantage = self.estimate_advantage(ob_no, next_ob_no, re_n, terminal_n)
 
         # for agent_params['num_actor_updates_per_agent_update'] steps,
         #     update the actor
+        for _ in range(self.agent_params["num_actor_updates_per_agent_update"]):
+            loss_actor = self.actor.update(
+                ob_no,
+                ac_na,
+                advantage,
+            )
 
         loss = OrderedDict()
-        loss['Critic_Loss'] = TODO
-        loss['Actor_Loss'] = TODO
+        loss['Critic_Loss'] = loss_critic
+        loss['Actor_Loss'] = loss_actor
 
         return loss
 
@@ -53,7 +67,10 @@ class ACAgent(BaseAgent):
         # 3) estimate the Q value as Q(s, a) = r(s, a) + gamma*V(s')
         # HINT: Remember to cut off the V(s') term (ie set it to 0) at terminal states (ie terminal_n=1)
         # 4) calculate advantage (adv_n) as A(s, a) = Q(s, a) - V(s)
-        adv_n = TODO
+
+        V_st = self.critic.forward_np(ob_no)
+        V_stp1 = self.critic.forward_np(next_ob_no) * (1-terminal_n)
+        adv_n = re_n + self.gamma*V_stp1 - V_st
 
         if self.standardize_advantages:
             adv_n = (adv_n - np.mean(adv_n)) / (np.std(adv_n) + 1e-8)

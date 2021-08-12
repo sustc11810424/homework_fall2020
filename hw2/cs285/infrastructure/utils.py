@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import copy
+from tqdm import tqdm
 
 ############################################
 ############################################
@@ -95,7 +96,6 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
         terminals.append(rollout_done)
 
         if rollout_done:
-            print(f"rollout done at step {steps}/{max_path_length}")
             break
     return Path(obs, image_obs, acs, rewards, next_obs, terminals)
     
@@ -110,10 +110,12 @@ def sample_trajectories(env, policy, min_timesteps_per_batch, max_path_length, r
     """
     timesteps_this_batch = 0
     paths = []
-    while timesteps_this_batch < min_timesteps_per_batch:
-        path = sample_trajectory(env, policy, max_path_length, render, render_mode)
-        paths.append(path)
-        timesteps_this_batch += get_pathlength(path)
+    with tqdm(total=min_timesteps_per_batch) as pbar:
+        while timesteps_this_batch < min_timesteps_per_batch:
+            path = sample_trajectory(env, policy, max_path_length, render, render_mode)
+            paths.append(path)
+            timesteps_this_batch += get_pathlength(path)
+            pbar.update(get_pathlength(path))
 
     return paths, timesteps_this_batch
 

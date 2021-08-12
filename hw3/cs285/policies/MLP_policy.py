@@ -87,6 +87,14 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
     # query the policy with observation(s) to get selected action(s)
     def get_action(self, obs: np.ndarray) -> np.ndarray:
         # TODO: get this from Piazza
+        if len(obs.shape) > 1:
+            observation = obs
+        else:
+            observation = obs[None]
+        observation = ptu.from_numpy(observation)
+        action_distribution = self(observation)
+        action = action_distribution.sample()
+        action = ptu.to_numpy(action)
         return action
 
     # update/train this policy
@@ -100,7 +108,13 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
     # `torch.distributions.Distribution` object. It's up to you!
     def forward(self, observation: torch.FloatTensor):
         # TODO: get this from Piazza
-        return action_distribution
+        if self.discrete:
+            return distributions.Categorical(logits=self.logits_na(observation)) 
+        else:
+            return distributions.Normal(
+                self.mean_net(observation),
+                torch.exp(self.logstd)[None]
+            ) 
 
 
 #####################################################
@@ -108,7 +122,22 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
 
 
 class MLPPolicyAC(MLPPolicy):
-    def update(self, observations, actions, adv_n=None):
+    def update(self, observations, actions, advantages=None):
+        observations = ptu.from_numpy(observations)
+        actions = ptu.from_numpy(actions)
+        advantages = ptu.from_numpy(advantages)
+        
         # TODO: update the policy and return the loss
-        loss = TODO
+        action_distributions: distributions.Distribution = self(observations)
+        log_prob = action_distributions.log_prob(actions)
+        if not self.discrete:
+            log_prob = log_prob.sum(1)
+        assert log_prob.size() == advantages.size(), f"{log_prob.size()}, {advantages.size()}, {actions.size()}"
+        loss = -torch.sum(log_prob*advantages)
+
+        # TODO: optimize `loss` using `self.optimizer`
+        # HINT: remember to `zero_grad` first
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         return loss.item()

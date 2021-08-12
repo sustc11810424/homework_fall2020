@@ -152,7 +152,7 @@ class PGAgent(BaseAgent):
         gammas = np.cumprod(np.ones(len(rewards))*self.gamma)
         discounted_return = rewards * gammas
         result = np.flip(np.cumsum(np.flip(discounted_return))) / gammas
-        assert np.isclose(result[0], result[1]*self.gamma+rewards[0])
+        assert np.isclose(result[:-1], result[1:]*self.gamma+rewards[:-1]).all()
         list_of_discounted_cumsums = result.tolist()
         # print(list_of_discounted_cumsums)
         return list_of_discounted_cumsums
